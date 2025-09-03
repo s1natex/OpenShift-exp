@@ -1,0 +1,11 @@
+---
+cluster_name: lab
+base_domain: home.arpa
+
+expected_vcpus: 8
+expected_ram_mb: 32000
+expected_root_disk_gb: 150
+
+node_ip: 192.168.56.10
+api_host: "api.{{ cluster_name }}.{{ base_domain }}"
+sample_app_host: "hello.apps.{{ cluster_name }}.{{ base_domain }}"

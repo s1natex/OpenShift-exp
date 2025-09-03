@@ -1,1 +1,5 @@
-Plant.txt
+Plan.txt
+Docs.txt
+.vagrant/
+*.log
+openshift.vdi

@@ -1,0 +1,74 @@
+---
+- name: Single-node readiness checks
+  hosts: all
+  gather_facts: true
+
+  pre_tasks:
+    - name: Install required collections (local)
+      ansible.builtin.meta: noop
+
+  tasks:
+    - name: Assert vCPU
+      ansible.builtin.assert:
+        that: ansible_facts.processor_vcpus | int >= expected_vcpus
+        fail_msg: "vCPU too low ({{ ansible_facts.processor_vcpus }} < {{ expected_vcpus }})"
+
+    - name: Assert RAM (MB)
+      ansible.builtin.assert:
+        that: ansible_facts.memtotal_mb | int >= expected_ram_mb
+        fail_msg: "RAM too low ({{ ansible_facts.memtotal_mb }} MB < {{ expected_ram_mb }} MB)"
+
+    - name: Get root mount info
+      ansible.builtin.set_fact:
+        _root_mount: "{{ (ansible_facts.mounts | selectattr('mount', 'equalto', '/')) | list | first }}"
+
+    - name: Compute root FS size (GB)
+      ansible.builtin.set_fact:
+        root_fs_gb: "{{ (_root_mount.size_total | int / 1024 / 1024 / 1024) | int }}"
+
+    - name: Assert root filesystem size
+      ansible.builtin.assert:
+        that: root_fs_gb | int >= expected_root_disk_gb
+        fail_msg: "Root filesystem too small ({{ root_fs_gb }} GB < {{ expected_root_disk_gb }} GB)"
+
+    - name: Show virtualization type
+      ansible.builtin.debug:
+        msg: "virt={{ ansible_facts.virtualization_type }}, role={{ ansible_facts.virtualization_role }}"
+
+    - name: Assert node IP matches expected
+      ansible.builtin.assert:
+        that: ansible_facts.default_ipv4.address == node_ip
+        fail_msg: "Default IPv4 ({{ ansible_facts.default_ipv4.address }}) != expected {{ node_ip }}"
+
+    - name: Resolve API host
+      ansible.builtin.getent:
+        database: hosts
+        key: "{{ api_host }}"
+      register: api_dns
+
+    - name: Assert API DNS maps to node_ip
+      ansible.builtin.assert:
+        that: api_dns.ansible_facts.getent_hosts[api_host][0] == node_ip
+        fail_msg: "DNS for {{ api_host }} != {{ node_ip }} (got {{ api_dns.ansible_facts.getent_hosts[api_host] | default([]) }})"
+
+    - name: Check default gateway presence
+      ansible.builtin.assert:
+        that: ansible_facts.default_ipv4.gateway is defined
+        fail_msg: "No default gateway detected"
+
+    - name: Quick egress check (HEAD to quay.io)
+      ansible.builtin.uri:
+        url: https://quay.io
+        method: HEAD
+        return_content: no
+        validate_certs: yes
+        timeout: 10
+      register: egress_test
+      failed_when: egress_test.status not in [200,301,302]
+
+    - name: Summary
+      ansible.builtin.debug:
+        msg:
+          - "OK: vCPU={{ ansible_facts.processor_vcpus }}, RAM_MB={{ ansible_facts.memtotal_mb }}, ROOT_GB={{ root_fs_gb }}"
+          - "OK: IP={{ ansible_facts.default_ipv4.address }}, GW={{ ansible_facts.default_ipv4.gateway }}"
+          - "OK: DNS {{ api_host }} -> {{ api_dns.ansible_facts.getent_hosts[api_host][0] }}"
