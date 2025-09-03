@@ -6,4 +6,4 @@ node_ip: 192.168.56.10
 
 expected_vcpus: 8
 expected_ram_mb: 32000
-expected_root_disk_gb: 150
+expected_root_disk_gb: 120
