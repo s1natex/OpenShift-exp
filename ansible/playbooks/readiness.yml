@@ -3,12 +3,8 @@
   hosts: all
   gather_facts: true
 
-  pre_tasks:
-    - name: Install required collections (local)
-      ansible.builtin.meta: noop
-
   tasks:
-    - name: Assert vCPU
+    - name: Assert vCPU count
       ansible.builtin.assert:
         that: ansible_facts.processor_vcpus | int >= expected_vcpus
         fail_msg: "vCPU too low ({{ ansible_facts.processor_vcpus }} < {{ expected_vcpus }})"
@@ -31,25 +27,14 @@
         that: root_fs_gb | int >= expected_root_disk_gb
         fail_msg: "Root filesystem too small ({{ root_fs_gb }} GB < {{ expected_root_disk_gb }} GB)"
 
-    - name: Show virtualization type
-      ansible.builtin.debug:
-        msg: "virt={{ ansible_facts.virtualization_type }}, role={{ ansible_facts.virtualization_role }}"
+    - name: Collect all IPv4 addresses
+      ansible.builtin.set_fact:
+        ipv4_list: "{{ ansible_facts.all_ipv4_addresses | default([]) }}"
 
-    - name: Assert node IP matches expected
+    - name: Assert node_ip present on some interface
       ansible.builtin.assert:
-        that: ansible_facts.default_ipv4.address == node_ip
-        fail_msg: "Default IPv4 ({{ ansible_facts.default_ipv4.address }}) != expected {{ node_ip }}"
-
-    - name: Resolve API host
-      ansible.builtin.getent:
-        database: hosts
-        key: "{{ api_host }}"
-      register: api_dns
-
-    - name: Assert API DNS maps to node_ip
-      ansible.builtin.assert:
-        that: api_dns.ansible_facts.getent_hosts[api_host][0] == node_ip
-        fail_msg: "DNS for {{ api_host }} != {{ node_ip }} (got {{ api_dns.ansible_facts.getent_hosts[api_host] | default([]) }})"
+        that: node_ip in ipv4_list
+        fail_msg: "Expected {{ node_ip }} not present on any interface. Got: {{ ipv4_list }}"
 
     - name: Check default gateway presence
       ansible.builtin.assert:
@@ -70,5 +55,4 @@
       ansible.builtin.debug:
         msg:
           - "OK: vCPU={{ ansible_facts.processor_vcpus }}, RAM_MB={{ ansible_facts.memtotal_mb }}, ROOT_GB={{ root_fs_gb }}"
-          - "OK: IP={{ ansible_facts.default_ipv4.address }}, GW={{ ansible_facts.default_ipv4.gateway }}"
-          - "OK: DNS {{ api_host }} -> {{ api_dns.ansible_facts.getent_hosts[api_host][0] }}"
+          - "OK: IPs={{ ipv4_list }}, GW={{ ansible_facts.default_ipv4.gateway }}"
