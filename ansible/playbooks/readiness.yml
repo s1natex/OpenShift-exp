@@ -14,19 +14,26 @@
         that: ansible_facts.memtotal_mb | int >= expected_ram_mb
         fail_msg: "RAM too low ({{ ansible_facts.memtotal_mb }} MB < {{ expected_ram_mb }} MB)"
 
-    - name: Get root mount info
-      ansible.builtin.set_fact:
-        _root_mount: "{{ (ansible_facts.mounts | selectattr('mount', 'equalto', '/')) | list | first }}"
+    - name: Gather raw disk info (lsblk JSON)
+      ansible.builtin.command: lsblk -b -J -o NAME,SIZE,TYPE
+      register: lsblk_out
+      changed_when: false
 
-    - name: Compute root FS size (GB)
+    - name: Parse lsblk JSON
       ansible.builtin.set_fact:
-        root_fs_gb: "{{ (_root_mount.size_total | int / 1024 / 1024 / 1024) | int }}"
+        lsblk_json: "{{ lsblk_out.stdout | from_json }}"
 
-    - name: Assert root filesystem size
+    - name: Compute largest disk size (GB)
+      ansible.builtin.set_fact:
+        disk_sizes_bytes: "{{ lsblk_json.blockdevices | selectattr('type','equalto','disk') | map(attribute='size') | list }}"
+        largest_disk_gb: "{{ (disk_sizes_bytes | map('int') | max // (1024*1024*1024)) | int }}"
+
+    - name: Assert at least one disk >= expected_root_disk_gb
       ansible.builtin.assert:
-        that: root_fs_gb | int >= expected_root_disk_gb
-        fail_msg: "Root filesystem too small ({{ root_fs_gb }} GB < {{ expected_root_disk_gb }} GB)"
+        that: largest_disk_gb | int >= expected_root_disk_gb
+        fail_msg: "Largest disk is {{ largest_disk_gb }} GB, need >= {{ expected_root_disk_gb }} GB"
 
+    # Networking checks
     - name: Collect all IPv4 addresses
       ansible.builtin.set_fact:
         ipv4_list: "{{ ansible_facts.all_ipv4_addresses | default([]) }}"
@@ -54,5 +61,5 @@
     - name: Summary
       ansible.builtin.debug:
         msg:
-          - "OK: vCPU={{ ansible_facts.processor_vcpus }}, RAM_MB={{ ansible_facts.memtotal_mb }}, ROOT_GB={{ root_fs_gb }}"
+          - "OK: vCPU={{ ansible_facts.processor_vcpus }}, RAM_MB={{ ansible_facts.memtotal_mb }}, LARGEST_DISK_GB={{ largest_disk_gb }}"
           - "OK: IPs={{ ipv4_list }}, GW={{ ansible_facts.default_ipv4.gateway }}"

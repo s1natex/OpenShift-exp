@@ -4,8 +4,7 @@ Vagrant.configure("2") do |config|
 
   config.vm.define "openshift" do |vm|
     vm.vm.hostname = "openshift"
-    vm.vm.network "private_network", ip: "192.168.56.10"  # Host-Only
-    vm.vm.network "public_network", bridge: "Automatic", use_dhcp_assigned_default_route: true  # NAT/Bridged for egress
+    vm.vm.network "private_network", ip: "192.168.56.10"
     vm.vm.synced_folder ".", "/vagrant", disabled: true
 
     vm.vm.provider "virtualbox" do |vb|
