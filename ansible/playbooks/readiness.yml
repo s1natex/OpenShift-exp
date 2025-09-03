@@ -14,6 +14,7 @@
         that: ansible_facts.memtotal_mb | int >= expected_ram_mb
         fail_msg: "RAM too low ({{ ansible_facts.memtotal_mb }} MB < {{ expected_ram_mb }} MB)"
 
+    # ---- Disk capacity (raw) check for installer target ----
     - name: Gather raw disk info (lsblk JSON)
       ansible.builtin.command: lsblk -b -J -o NAME,SIZE,TYPE
       register: lsblk_out
@@ -23,17 +24,29 @@
       ansible.builtin.set_fact:
         lsblk_json: "{{ lsblk_out.stdout | from_json }}"
 
+    - name: Extract list of disks
+      ansible.builtin.set_fact:
+        disk_list: "{{ (lsblk_json.blockdevices | selectattr('type','equalto','disk') | list) | default([]) }}"
+
+    - name: Fail if no disks found
+      ansible.builtin.assert:
+        that: disk_list | length > 0
+        fail_msg: "No disks found in lsblk output: {{ lsblk_json }}"
+
+    - name: Build list of disk sizes (bytes)
+      ansible.builtin.set_fact:
+        disk_sizes_bytes: "{{ disk_list | map(attribute='size') | map('int') | list }}"
+
     - name: Compute largest disk size (GB)
       ansible.builtin.set_fact:
-        disk_sizes_bytes: "{{ lsblk_json.blockdevices | selectattr('type','equalto','disk') | map(attribute='size') | list }}"
-        largest_disk_gb: "{{ (disk_sizes_bytes | map('int') | max // (1024*1024*1024)) | int }}"
+        largest_disk_gb: "{{ (disk_sizes_bytes | max // (1024*1024*1024)) | int }}"
 
     - name: Assert at least one disk >= expected_root_disk_gb
       ansible.builtin.assert:
         that: largest_disk_gb | int >= expected_root_disk_gb
         fail_msg: "Largest disk is {{ largest_disk_gb }} GB, need >= {{ expected_root_disk_gb }} GB"
 
-    # Networking checks
+    # ---- Networking checks ----
     - name: Collect all IPv4 addresses
       ansible.builtin.set_fact:
         ipv4_list: "{{ ansible_facts.all_ipv4_addresses | default([]) }}"
