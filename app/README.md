@@ -7,7 +7,7 @@
 - To view logs, use: **docker-compose logs -f**
 - To run tests, navigate to the backend directory and use: pytest --cov=
 - Ensure Docker is installed and running on your machine
-- Manual verification:
+- **Manual verification:**
 ```
 # backend health
 curl -i http://localhost:8000/healthz
@@ -18,13 +18,13 @@ curl -i http://localhost:8080/healthz
 # frontend serves page
 curl -I http://localhost:8080
 ```
-- Healthchecks via Docker:
+- **Healthchecks via Docker:**
 ```
 docker compose ps # STATUS "(healthy)" for both
 docker inspect --format '{{json .State.Health}}' ms-backend | jq
 docker inspect --format '{{json .State.Health}}' ms-frontend | jq
 ```
-- Run tests in containers:
+- **Run tests in containers:**
 ```
 cd app
 
@@ -34,6 +34,6 @@ docker compose run --rm backend pytest -q
 # frontend tests (vitest)
 docker compose run --rm frontend npm test -- --run
 ```
-- UI sanity-check:
+- **UI sanity-check:**
     - Visit http://localhost:8080, The card will show frontend health and the backend message
     - If you temporarily stop backend (**docker stop ms-backend**), the frontend will show ***“Failed to reach backend”*** upon reload, and ***depends_on*** will keep frontend up but healthcheck for backend will fail (as expected), Start it again: **docker start ms-backend**
