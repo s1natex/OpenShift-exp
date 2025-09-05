@@ -1,0 +1,25 @@
+{
+  "name": "demo-frontend",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "serve": "node server.js",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "express": "4.19.2",
+    "http-proxy-middleware": "3.0.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "6.4.8",
+    "@testing-library/react": "16.0.0",
+    "@vitejs/plugin-react": "4.3.1",
+    "jsdom": "25.0.1",
+    "vite": "5.4.6",
+    "vitest": "2.1.1"
+  }
+}
