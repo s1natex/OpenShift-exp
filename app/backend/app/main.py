@@ -21,3 +21,6 @@ def readyz():
 @app.get("/api/hello")
 def hello():
     return {"message": "Hello from FastAPI"}
+
+#bumpversion patch
+#git commit -am "Bump version"
